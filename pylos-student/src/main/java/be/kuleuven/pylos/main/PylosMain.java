@@ -6,7 +6,10 @@ import be.kuleuven.pylos.game.PylosGame;
 import be.kuleuven.pylos.game.PylosGameObserver;
 import be.kuleuven.pylos.player.PylosPlayer;
 import be.kuleuven.pylos.player.PylosPlayerObserver;
+import be.kuleuven.pylos.player.codes.PylosPlayerBestFit;
+import be.kuleuven.pylos.player.codes.PylosPlayerMiniMax;
 import be.kuleuven.pylos.player.codes.PylosPlayerRandomFit;
+import be.kuleuven.pylos.player.student.StudentPlayerBestFit;
 import be.kuleuven.pylos.player.student.StudentPlayerRandomFit;
 
 import java.util.Random;
@@ -23,8 +26,8 @@ public class PylosMain {
 	public void startSingleGame(){
 		Random random = new Random(0);
 
-		PylosPlayer randomPlayerCodes = new StudentPlayerRandomFit();
-		PylosPlayer randomPlayerStudent = new StudentPlayerRandomFit();
+		PylosPlayer randomPlayerCodes = new StudentPlayerBestFit();
+		PylosPlayer randomPlayerStudent = new StudentPlayerBestFit();
 
 		PylosBoard pylosBoard = new PylosBoard();
 		PylosGame pylosGame = new PylosGame(pylosBoard, randomPlayerCodes, randomPlayerStudent, random, PylosGameObserver.CONSOLE_GAME_OBSERVER, PylosPlayerObserver.NONE);
@@ -33,10 +36,10 @@ public class PylosMain {
 	}
 
 	public void startBattle(){
-		PylosPlayer playerLight = new StudentPlayerRandomFit();
-		PylosPlayer playerDark = new StudentPlayerRandomFit();
+		PylosPlayer playerLight = new PylosPlayerMiniMax(3);
+		PylosPlayer playerDark = new StudentPlayerBestFit();
 
-		Battle.play(playerLight, playerDark, 10000);
+		Battle.play(playerLight, playerDark, 100);
 	}
 
 	public static void main(String[] args){

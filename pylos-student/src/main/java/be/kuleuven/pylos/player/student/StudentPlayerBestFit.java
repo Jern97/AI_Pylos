@@ -20,21 +20,17 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
     @Override
     public void doMove(PylosGameIF game, PylosBoard board) {
-        ArrayList<PylosLocation> allLocations = new ArrayList<>(Arrays.asList(board.getLocations()));
-        List<PylosLocation> usableLocations = allLocations.stream().filter(PylosLocation::isUsable).collect(Collectors.toList());
-        PylosSphere reserveSphere = board.getReserve(this);
-        while (true) {
-            PylosLocation location = usableLocations.get(r.nextInt(usableLocations.size()));
-            if (!game.moveSphereIsDraw(reserveSphere, location)) {
-                game.moveSphere(reserveSphere, location);
-                lastSphere = reserveSphere;
-                break;
-            }
-        }
+        PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
+        Move move = selectBestMove(sim, board, this, 0);
+        game.moveSphere(move.getSphere(), move.getLocation());
+
+        //TEMPORARY
+        lastSphere = move.getSphere();
     }
 
     @Override
     public void doRemove(PylosGameIF game, PylosBoard board) {
+        //TEMPORARY
         game.removeSphere(lastSphere);
     }
 
@@ -51,21 +47,54 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
         for (Move m : moves) {
             Move reverseMove = new Move(m.getSphere(), player.PLAYER_COLOR);
+            Move firstRemoveMove = null;
+            Move secondRemoveMove = null;
             PylosGameState state = sim.getState();
             sim.moveSphere(m.getSphere(), m.getLocation());
 
-            if(depth == SEARCH_DEPTH){
-                m.setScore(evalBoard(board, player.PLAYER_COLOR));
-            }
-            else{
-                m.setScore(selectBestMove(sim, board, player.OTHER, depth-1).getScore()*-1);
+
+            if (sim.getState() == PylosGameState.REMOVE_FIRST) {
+                PylosSphere s = m.getSphere();
+                firstRemoveMove = new Move(s, player.PLAYER_COLOR);
+                sim.removeSphere(s);
+                if (sim.getState() == PylosGameState.REMOVE_SECOND) {
+                    //Voorlopig altijd passen
+                    sim.pass();
+                }
+                ;
             }
 
+            if (depth == SEARCH_DEPTH) {
+                m.setScore(evalBoard(board, player.PLAYER_COLOR));
+            } else {
+                m.setScore(selectBestMove(sim, board, player.OTHER, depth + 1).getScore() * -1);
+            }
+
+
+
+
+
+
             //Spel terugdraaien in de tijd
+
+
+
+            if(firstRemoveMove != null){
+                if(secondRemoveMove != null){
+                    sim.undoRemoveSecondSphere(secondRemoveMove.getSphere(), secondRemoveMove.getLocation(), PylosGameState.REMOVE_SECOND, player.PLAYER_COLOR);
+                }
+                else {
+                    sim.undoPass(PylosGameState.REMOVE_SECOND, player.PLAYER_COLOR);
+                }
+                sim.undoRemoveFirstSphere(firstRemoveMove.getSphere(), firstRemoveMove.getLocation(), PylosGameState.REMOVE_FIRST, player.PLAYER_COLOR);
+            }
+
             if (reverseMove.getLocation() == null) {
                 sim.undoAddSphere(reverseMove.getSphere(), state, player.PLAYER_COLOR);
-            }
-            else sim.undoMoveSphere(reverseMove.getSphere(), reverseMove.getLocation(), state, player.PLAYER_COLOR);
+            } else
+                sim.undoMoveSphere(reverseMove.getSphere(), reverseMove.getLocation(), state, player.PLAYER_COLOR);
+
+
         }
 
         //Selecteer move met grootste score
@@ -85,7 +114,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
             //Als de locatie niet op de grond ligt kan het zijn dat we deze kunnen vullen met spheres op het veld
             if (loc.Z > 0) {
                 //Selecteer alle spheres die onder deze locatie liggen op het bord en kunnen bewegen
-                List<PylosSphere> freeSpheresBelow = Arrays.stream(board.getSpheres(player)).filter(s -> s.getLocation() != null && s.getLocation().Z < loc.Z && s.canMove()).collect(Collectors.toList());
+                List<PylosSphere> freeSpheresBelow = Arrays.stream(board.getSpheres(player)).filter(s -> s.getLocation() != null && s.getLocation().Z < loc.Z && s.canMove() && !s.getLocation().isBelow(loc)).collect(Collectors.toList());
                 for (PylosSphere s : freeSpheresBelow) {
                     moves.add(new Move(s, loc, player.PLAYER_COLOR));
                 }

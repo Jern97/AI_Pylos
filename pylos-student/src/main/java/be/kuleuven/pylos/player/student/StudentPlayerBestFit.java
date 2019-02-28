@@ -4,10 +4,7 @@ import be.kuleuven.pylos.classes.Move;
 import be.kuleuven.pylos.game.*;
 import be.kuleuven.pylos.player.PylosPlayer;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -53,28 +50,29 @@ public class StudentPlayerBestFit extends PylosPlayer {
         int bestScore = Integer.MIN_VALUE;
 
         for (Move m : moves) {
-            Move reverseMove = new Move(m.getSphere());
+            Move reverseMove = new Move(m.getSphere(), player.PLAYER_COLOR);
             PylosGameState state = sim.getState();
             sim.moveSphere(m.getSphere(), m.getLocation());
 
-            if(depth == SEARCH_DEPTH) evalBoard(board);
-
-
-
+            if(depth == SEARCH_DEPTH){
+                m.setScore(evalBoard(board, player.PLAYER_COLOR));
+            }
+            else{
+                m.setScore(selectBestMove(sim, board, player.OTHER, depth-1).getScore()*-1);
+            }
 
             //Spel terugdraaien in de tijd
             if (reverseMove.getLocation() == null) {
                 sim.undoAddSphere(reverseMove.getSphere(), state, player.PLAYER_COLOR);
             }
             else sim.undoMoveSphere(reverseMove.getSphere(), reverseMove.getLocation(), state, player.PLAYER_COLOR);
-
-
-
         }
+
+        //Selecteer move met grootste score
+        return moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
 
 
     }
-
 
     private List<Move> generateMoves(PylosBoard board, PylosPlayer player) {
         List<PylosLocation> usableLocations = Arrays.stream(board.getLocations()).filter(PylosLocation::isUsable).collect(Collectors.toList());
@@ -83,13 +81,13 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
         PylosSphere reserveSphere = board.getReserve(player);
         for (PylosLocation loc : usableLocations) {
-            moves.add(new Move(reserveSphere, loc));
+            moves.add(new Move(reserveSphere, loc, player.PLAYER_COLOR));
             //Als de locatie niet op de grond ligt kan het zijn dat we deze kunnen vullen met spheres op het veld
             if (loc.Z > 0) {
                 //Selecteer alle spheres die onder deze locatie liggen op het bord en kunnen bewegen
                 List<PylosSphere> freeSpheresBelow = Arrays.stream(board.getSpheres(player)).filter(s -> s.getLocation() != null && s.getLocation().Z < loc.Z && s.canMove()).collect(Collectors.toList());
                 for (PylosSphere s : freeSpheresBelow) {
-                    moves.add(new Move(s, loc));
+                    moves.add(new Move(s, loc, player.PLAYER_COLOR));
                 }
             }
         }
@@ -98,9 +96,9 @@ public class StudentPlayerBestFit extends PylosPlayer {
     }
 
 
-    private int evalBoard(PylosBoard board) {
+    private int evalBoard(PylosBoard board, PylosPlayerColor color) {
         //Voorlopige eval functie
-        return board.getReservesSize(this.PLAYER_COLOR) - board.getReservesSize(this.PLAYER_COLOR.other());
+        return board.getReservesSize(color) - board.getReservesSize(color.other());
     }
 
 

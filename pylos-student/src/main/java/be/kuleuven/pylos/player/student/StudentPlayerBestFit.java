@@ -12,45 +12,50 @@ import java.util.stream.Collectors;
  */
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    final static int SEARCH_DEPTH = 5;
+    final static int SEARCH_DEPTH = 4;
 
+    Move parentMove;
 
-    PylosSphere lastSphere = null;
     Random r = new Random();
 
 
     @Override
     public void doMove(PylosGameIF game, PylosBoard board) {
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
-        Move move = selectBestMove(sim, board, game, 1);
-        System.out.println("Move chosen: " + move);
-        System.out.println("Next predicted move: " + move.getOptimalChild());
-        System.out.println();
-        game.moveSphere(move.getSphere(), move.getLocation());
+        List<Move> moves = selectBestMove(sim, board, game, 1);
+        Move bestMove = moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
 
-        //TODO: TEMPORARY
-        lastSphere = move.getSphere();
+        game.moveSphere(bestMove.getSphere(), bestMove.getTo());
+        checkIfTreeIsFullyGrown(moves, 1);
+
+        System.out.println("stop");
+
     }
 
     @Override
     public void doRemove(PylosGameIF game, PylosBoard board) {
-        //TODO: TEMPORARY
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
-        Move move = selectBestMove(sim, board, game, 1);
-        game.removeSphere(move.getSphere());
+        List<Move> moves = selectBestMove(sim, board, game, 1);
+        Move bestMove = moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
+
+        game.removeSphere(bestMove.getSphere());
+
+        System.out.println("stop");
     }
 
     @Override
     public void doRemoveOrPass(PylosGameIF game, PylosBoard board) {
-        //TODO: TEMPORARY
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
-        Move move = selectBestMove(sim, board, game, 1);
+        List<Move> moves = selectBestMove(sim, board, game, 1);
+        Move bestMove = moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
 
-        if (move.getSphere() != null) game.removeSphere(move.getSphere());
+        if (bestMove.getSphere() != null) game.removeSphere(bestMove.getSphere());
         else game.pass();
+
+        System.out.println("stop");
     }
 
-    private Move selectBestMove(PylosGameSimulator sim, PylosBoard board, PylosGameIF game, int depth) {
+    private List<Move> selectBestMove(PylosGameSimulator sim, PylosBoard board, PylosGameIF game, int depth) {
 
         PylosPlayerColor currentColor = sim.getColor();
 
@@ -58,7 +63,9 @@ public class StudentPlayerBestFit extends PylosPlayer {
             //Indien het spel vervolledigd is
             Move m = new Move(null, null);
             m.setScore(evalBoard(board, currentColor));
-            return m;
+            List<Move> moves = new ArrayList<>();
+            moves.add(m);
+            return moves;
         }
 
 
@@ -68,36 +75,47 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
             for (Move m : moves) {
                 Move reverseMove = new Move(m.getSphere(), currentColor);
-                sim.moveSphere(m.getSphere(), m.getLocation());
+                sim.moveSphere(m.getSphere(), m.getTo());
 
                 if (sim.getState() == PylosGameState.REMOVE_FIRST) {
                     //Zelfde speler blijft aan de beurt
-                    m.setScore(selectBestMove(sim, board, game, depth).getScore());
+                    parentMove = m;
+                    m.setScore(selectBestMove(sim, board, game, depth));
                 } else {
                     //Het is de beurt aan de andere
                     if (depth < SEARCH_DEPTH && sim.getState() != PylosGameState.COMPLETED) {
-                        m.addChild(selectBestMove(sim, board, game, depth + 1));
+                        m.addChildren(selectBestMove(sim, board, game, depth + 1));
                     } else {
                         m.setScore(evalBoard(board, currentColor));
                     }
                 }
 
                 //Keer eke were
-                if (reverseMove.getLocation() == null) {
+                if (reverseMove.getTo() == null) {
                     sim.undoAddSphere(reverseMove.getSphere(), PylosGameState.MOVE, currentColor);
                 } else
-                    sim.undoMoveSphere(reverseMove.getSphere(), reverseMove.getLocation(), PylosGameState.MOVE, currentColor);
+                    sim.undoMoveSphere(reverseMove.getSphere(), reverseMove.getTo(), PylosGameState.MOVE, currentColor);
 
                 if (sim.getState() != PylosGameState.MOVE) {
                     System.out.println("stop");
                 }
 
             }
+
+            //PRINTS VOOR DEBUG
+            /*
             if (depth == 1) {
+                Move bestMove = moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
+                System.out.println("***** AI:");
                 for (Move m : moves) System.out.println(m);
+                System.out.println("Move chosen: "+bestMove);
+                System.out.println("***** Opponent:");
+                for (Move m: bestMove.getChildren()) System.out.println(m);
+                System.out.println();
             }
+            */
             //Selecteer move met grootste score
-            return moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
+            return moves;
         }
         if (sim.getState() == PylosGameState.REMOVE_FIRST) {
             List<Move> moves = generateRemoves(board, currentColor, game, depth, false);
@@ -107,12 +125,12 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
                 sim.removeSphere(m.getSphere());
 
-                m.setScore(selectBestMove(sim, board, game, depth).getScore());
+                m.setScore(selectBestMove(sim, board, game, depth));
 
                 //Keer eke were
-                sim.undoRemoveFirstSphere(reverseMove.getSphere(), reverseMove.getLocation(), PylosGameState.REMOVE_FIRST, currentColor);
+                sim.undoRemoveFirstSphere(reverseMove.getSphere(), reverseMove.getTo(), PylosGameState.REMOVE_FIRST, currentColor);
             }
-            return moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
+            return moves;
         }
         if (sim.getState() == PylosGameState.REMOVE_SECOND) {
             List<Move> moves = generateRemoves(board, sim.getColor(), game, depth, true);
@@ -128,18 +146,19 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 }
 
                 if (depth < SEARCH_DEPTH) {
-                    m.addChild(selectBestMove(sim, board, game, depth + 1));
+                    //Kinderen moeten toegevoegd worden aan de parent Move (niet de remove moves)
+                    parentMove.addChildren(selectBestMove(sim, board, game, depth + 1));
                 } else {
-                    m.setScore(evalBoard(board, currentColor));
+                    parentMove.setScore(evalBoard(board, currentColor));
                 }
 
                 if (reverseMove != null) {
-                    sim.undoRemoveSecondSphere(reverseMove.getSphere(), reverseMove.getLocation(), PylosGameState.REMOVE_SECOND, currentColor);
+                    sim.undoRemoveSecondSphere(reverseMove.getSphere(), reverseMove.getTo(), PylosGameState.REMOVE_SECOND, currentColor);
                 } else {
                     sim.undoPass(PylosGameState.REMOVE_SECOND, currentColor);
                 }
             }
-            return moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
+            return moves;
 
         }
         //Hier zouden we normaal niet mogen komen
@@ -208,8 +227,33 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
 
         //Spel is nog bezig
-        //Voorlopig gewoon eigen reserve - reserve van ander
-        return board.getReservesSize(color) - board.getReservesSize(color.other());
+        int nReserves = board.getReservesSize(color);
+        int nReservesOpp = board.getReservesSize(color.other());
+
+        int nMovableSpheres = (int) Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.canMove()).count();
+        int nMovableSpheresOpp = (int) Arrays.stream(board.getSpheres(color.other())).filter(s -> s.getLocation() != null && s.canMove()).count();
+
+        //TODO: voorlopige oplossing tot ik vind als je player 1 of 2 bent
+        int OppHas1RoundLess = SEARCH_DEPTH % 2 == 0 ? -1 : 0;
+
+        return 10*(nReserves - nReservesOpp-OppHas1RoundLess) + 2*(nMovableSpheres-nMovableSpheresOpp-OppHas1RoundLess);
+
+    }
+
+
+    public boolean checkIfTreeIsFullyGrown(List<Move> moves, int depth){
+        if(depth == SEARCH_DEPTH) return true;
+        for(Move m: moves){
+            if(m.getChildren().size() == 0){
+                return false;
+            }
+        }
+        for(Move m: moves){
+            if(!checkIfTreeIsFullyGrown(m.getChildren(), depth+1)){
+                return false;
+            }
+        }
+        return true;
     }
 
 

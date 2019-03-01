@@ -11,21 +11,23 @@ import java.util.NoSuchElementException;
 
 public class Move {
     private PylosSphere sphere;
-    private PylosLocation location;
+    private PylosLocation from;
+    private PylosLocation to;
     private PylosPlayerColor color;
-    private int score = Integer.MIN_VALUE; //De minst optimistische score
+    private int score = Integer.MAX_VALUE; //De meest optimistische score
     private List<Move> children = new ArrayList<>();
 
-    public Move(PylosSphere sphere, PylosLocation location, PylosPlayerColor color) {
+    public Move(PylosSphere sphere, PylosLocation to, PylosPlayerColor color) {
         this.sphere = sphere;
-        this.location = location;
+        if(sphere != null) this.from = sphere.getLocation();
+        this.to = to;
         this.color = color;
     }
 
     //Constructor voor reverseMove
     public Move(PylosSphere sphere, PylosPlayerColor color){
         this.sphere = sphere;
-        this.location = sphere.getLocation();
+        this.to = sphere.getLocation();
         this.color = color;
     }
 
@@ -33,19 +35,21 @@ public class Move {
         return sphere;
     }
 
-    public PylosLocation getLocation() {
-        return location;
+    public PylosLocation getTo() {
+        return to;
     }
 
     public List<Move> getChildren() {
         return children;
     }
 
-    public void setScore(int score) {
-
-        if(score == Integer.MAX_VALUE || score == Integer.MIN_VALUE){
-            System.out.println("stop");
+    public void setScore(List<Move> moves) {
+        for(Move m: moves){
+            score = Math.min(score, m.getScore());
         }
+    }
+
+    public void setScore(int score){
         this.score = score;
     }
 
@@ -53,28 +57,33 @@ public class Move {
         return score;
     }
 
-    public void addChild(Move m){
-        children.add(m);
-        score = Math.max(score, m.getScore()*-1);
+    public void addChildren(List<Move> children){
+        for(Move m: children) {
+            this.children.add(m);
+            score = Math.min(score, m.getScore() * -1);
+        }
     }
 
     public Move getOptimalChild(){
-        return children.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
-
+        if(!children.isEmpty())
+            return children.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
+        else return null;
     }
+
+
 
     public String toString(){
         StringBuilder sb = new StringBuilder();
         sb.append("("+score+")");
-        if(sphere.getLocation() != null){
-            sb.append("["+sphere.getLocation().X + ", " + sphere.getLocation().Y + ", " + sphere.getLocation().Z+ "]");
+        if(from != null){
+            sb.append("["+from.X + ", " + from.Y + ", " + from.Z+ "]");
         }
         else{
             sb.append("[reserve]");
         }
         sb.append(" TO ");
-        if(location != null){
-            sb.append("["+location.X + ", " + location.Y + ", " + location.Z+ "]");
+        if(to != null){
+            sb.append("["+ to.X + ", " + to.Y + ", " + to.Z+ "]");
         }
         else{
             sb.append("[reserve]");

@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
  */
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    final static int SEARCH_DEPTH = 3;
+    final static int SEARCH_DEPTH = 5;
 
 
     PylosSphere lastSphere = null;
@@ -23,6 +23,9 @@ public class StudentPlayerBestFit extends PylosPlayer {
     public void doMove(PylosGameIF game, PylosBoard board) {
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
         Move move = selectBestMove(sim, board, game, 1);
+        System.out.println("Move chosen: " + move);
+        System.out.println("Next predicted move: " + move.getOptimalChild());
+        System.out.println();
         game.moveSphere(move.getSphere(), move.getLocation());
 
         //TODO: TEMPORARY
@@ -61,21 +64,19 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
         if (sim.getState() == PylosGameState.MOVE) {
 
-            List<Move> moves = generateMoves(board, sim.getColor(), game, depth);
+            List<Move> moves = generateMoves(board, currentColor, game, depth);
 
             for (Move m : moves) {
-                Move reverseMove = new Move(m.getSphere(), sim.getColor());
+                Move reverseMove = new Move(m.getSphere(), currentColor);
                 sim.moveSphere(m.getSphere(), m.getLocation());
 
                 if (sim.getState() == PylosGameState.REMOVE_FIRST) {
                     //Zelfde speler blijft aan de beurt
-                    System.out.println(depth);
                     m.setScore(selectBestMove(sim, board, game, depth).getScore());
-                }
-                else {
+                } else {
                     //Het is de beurt aan de andere
                     if (depth < SEARCH_DEPTH && sim.getState() != PylosGameState.COMPLETED) {
-                        m.setScore(selectBestMove(sim, board, game, depth + 1).getScore() * -1);
+                        m.addChild(selectBestMove(sim, board, game, depth + 1));
                     } else {
                         m.setScore(evalBoard(board, currentColor));
                     }
@@ -87,31 +88,26 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 } else
                     sim.undoMoveSphere(reverseMove.getSphere(), reverseMove.getLocation(), PylosGameState.MOVE, currentColor);
 
-                if(sim.getState() != PylosGameState.MOVE){
+                if (sim.getState() != PylosGameState.MOVE) {
                     System.out.println("stop");
                 }
 
+            }
+            if (depth == 1) {
+                for (Move m : moves) System.out.println(m);
             }
             //Selecteer move met grootste score
             return moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
         }
         if (sim.getState() == PylosGameState.REMOVE_FIRST) {
-            List<Move> moves = generateRemoves(board, sim.getColor(), game, depth, false);
+            List<Move> moves = generateRemoves(board, currentColor, game, depth, false);
 
             for (Move m : moves) {
                 Move reverseMove = new Move(m.getSphere(), sim.getColor());
 
                 sim.removeSphere(m.getSphere());
 
-                if(sim.getState() != PylosGameState.REMOVE_SECOND){
-                    assert false;
-                }
-
                 m.setScore(selectBestMove(sim, board, game, depth).getScore());
-
-                if(sim.getState() != PylosGameState.REMOVE_SECOND){
-                    assert false;
-                }
 
                 //Keer eke were
                 sim.undoRemoveFirstSphere(reverseMove.getSphere(), reverseMove.getLocation(), PylosGameState.REMOVE_FIRST, currentColor);
@@ -131,18 +127,10 @@ public class StudentPlayerBestFit extends PylosPlayer {
                     sim.pass();
                 }
 
-                if(sim.getState() != PylosGameState.MOVE){
-                    assert false;
-                }
                 if (depth < SEARCH_DEPTH) {
-                    m.setScore(selectBestMove(sim, board, game, depth + 1).getScore() * -1);
-                }
-                else{
+                    m.addChild(selectBestMove(sim, board, game, depth + 1));
+                } else {
                     m.setScore(evalBoard(board, currentColor));
-                }
-
-                if(sim.getState() != PylosGameState.MOVE){
-                    assert false;
                 }
 
                 if (reverseMove != null) {
@@ -155,7 +143,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
         }
         //Hier zouden we normaal niet mogen komen
-        assert true;
+        assert false;
         return null;
 
     }
@@ -172,7 +160,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
             }
             //Als de locatie niet op de grond ligt kan het zijn dat we deze kunnen vullen met spheres op het veld
             if (loc.Z > 0) {
-                //Selecteer alle spheres die onder deze locatie liggen op het bord en kunnen bewegen
+                //Selecteer alle spheres die lager dan deze locatie liggen op het bord en kunnen bewegen
                 List<PylosSphere> freeSpheresBelow = Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.getLocation().Z < loc.Z && s.canMove() && !s.getLocation().isBelow(loc)).collect(Collectors.toList());
                 for (PylosSphere s : freeSpheresBelow) {
                     if (depth != 1 || !game.moveSphereIsDraw(s, loc)) {
@@ -190,7 +178,8 @@ public class StudentPlayerBestFit extends PylosPlayer {
         List<Move> moves = new ArrayList<>();
 
         for (PylosSphere s : removeableSpheres) {
-            if (depth != 1 || !game.removeSphereIsDraw(s)) {
+            //TODO: dat moet hier echt vele duidelijker
+            if (depth != 1 || game.getState() == PylosGameState.MOVE || !game.removeSphereIsDraw(s)) {
                 moves.add(new Move(s, null, color));
             }
         }
@@ -206,14 +195,20 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
 
     private int evalBoard(PylosBoard board, PylosPlayerColor color) {
-        if (board.getReservesSize(PylosPlayerColor.DARK) == 0 | board.getReservesSize(PylosPlayerColor.LIGHT) == 0) {
-            //Spel is compleet
+        //Spel is voltooid
+        if (board.getReservesSize(color) == 0 && board.getReservesSize(color.other()) == 0) {
             return board.getBoardLocation(0, 0, 3).getSphere().PLAYER_COLOR == color ? Integer.MAX_VALUE : Integer.MIN_VALUE;
         }
+        if (board.getReservesSize(color) == 0) {
+            return Integer.MIN_VALUE;
+        }
+        if (board.getReservesSize(color.other()) == 0) {
+            return Integer.MAX_VALUE;
+        }
+
+
         //Spel is nog bezig
         //Voorlopig gewoon eigen reserve - reserve van ander
-
-
         return board.getReservesSize(color) - board.getReservesSize(color.other());
     }
 

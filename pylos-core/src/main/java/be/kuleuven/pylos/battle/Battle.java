@@ -26,6 +26,7 @@ public class Battle {
 		String playerDarkClass = playerDark.getClass().getSimpleName();
 
 		for (int i = 0; i < runs / 2; i++) {
+			System.out.println(i);
 			PylosBoard board = new PylosBoard();
 			PylosGame game = new PylosGame(board, playerLight, playerDark, random);
 			double startTime = System.currentTimeMillis();
@@ -52,6 +53,7 @@ public class Battle {
 		int darkStartDraw = 0;
 
 		for (int i = 0; i < runs / 2; i++) {
+			System.out.println(runs/2+i);
 			PylosBoard board = new PylosBoard();
 			PylosGame game = new PylosGame(board, playerDark, playerLight, random);
 			double startTime = System.currentTimeMillis();

@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
  */
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    final static int SEARCH_DEPTH = 3;
+    final static int SEARCH_DEPTH = 2;
 
     Move parentMove;
 
@@ -80,7 +80,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 if (sim.getState() == PylosGameState.REMOVE_FIRST) {
                     //Zelfde speler blijft aan de beurt
                     parentMove = m;
-                    m.setScore(selectBestMove(sim, board, game, depth));
+                    selectBestMove(sim, board, game, depth);
                 } else {
                     //Het is de beurt aan de andere
                     if (depth < SEARCH_DEPTH && sim.getState() != PylosGameState.COMPLETED) {
@@ -104,7 +104,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
             //PRINTS VOOR DEBUG
             /*
-            if (depth == 1) {
+            if (depth == 0) {
                 Move bestMove = moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
                 System.out.println("***** AI:");
                 for (Move m : moves) System.out.println(m);
@@ -114,18 +114,22 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 System.out.println();
             }
             */
-            //Selecteer move met grootste score
+
             return moves;
         }
         if (sim.getState() == PylosGameState.REMOVE_FIRST) {
             List<Move> moves = generateRemoves(board, currentColor, game, depth, false);
+
+            if(moves.isEmpty()){
+                System.out.println("stop");
+            }
 
             for (Move m : moves) {
                 Move reverseMove = new Move(m.getSphere(), sim.getColor());
 
                 sim.removeSphere(m.getSphere());
 
-                m.setScore(selectBestMove(sim, board, game, depth));
+                selectBestMove(sim, board, game, depth);
 
                 //Keer eke were
                 sim.undoRemoveFirstSphere(reverseMove.getSphere(), reverseMove.getTo(), PylosGameState.REMOVE_FIRST, currentColor);
@@ -193,12 +197,21 @@ public class StudentPlayerBestFit extends PylosPlayer {
     }
 
     private List<Move> generateRemoves(PylosBoard board, PylosPlayerColor color, PylosGameIF game, int depth, boolean passAllowed) {
-        List<PylosSphere> removeableSpheres = Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.canMove()).collect(Collectors.toList());
+        List<PylosSphere> removableSpheres = Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.canMove()).collect(Collectors.toList());
+
+        if(!passAllowed && removableSpheres.isEmpty()){
+            System.out.println("stop");
+        }
         List<Move> moves = new ArrayList<>();
 
-        for (PylosSphere s : removeableSpheres) {
+        for (PylosSphere s : removableSpheres) {
             //TODO: dat moet hier echt vele duidelijker
-            if (depth != 0 || game.getState() == PylosGameState.MOVE || !game.removeSphereIsDraw(s)) {
+            if (depth == 0 && game.getState() != PylosGameState.MOVE){
+                if(!game.removeSphereIsDraw(s)){
+                    moves.add(new Move(s, null, color));
+                }
+            }
+            else{
                 moves.add(new Move(s, null, color));
             }
         }
@@ -234,14 +247,24 @@ public class StudentPlayerBestFit extends PylosPlayer {
         int nMovableSpheresOpp = (int) Arrays.stream(board.getSpheres(color.other())).filter(s -> s.getLocation() != null && s.canMove()).count();
 
         int squareFactor = 0;
+        int squareFactorOpp = 0;
         for(PylosSquare square : board.getAllSquares()){
             if(square.getInSquare(color.other()) == 0){
-                squareFactor += square.getInSquare(color);
+                /*
+                +1 voor 1 sphere in square
+                +4 voor 2 spheres in square
+                +8 voor 3 spheres in square
+                +16 voor 4 spheres in square
+                 */
+                squareFactor += (square.getInSquare(color))^2;
+            }
+            if(square.getInSquare(color) == 0){
+                squareFactorOpp += (square.getInSquare(color.other()))^2;
             }
         }
-        System.out.println(squareFactor);
 
-        return 10*(nReserves - nReservesOpp) + 1*squareFactor +1*(nMovableSpheres-nMovableSpheresOpp);
+
+        return 20*(nReserves - nReservesOpp) + 1*(squareFactor-squareFactorOpp) +1*(nMovableSpheres-nMovableSpheresOpp);
 
     }
 

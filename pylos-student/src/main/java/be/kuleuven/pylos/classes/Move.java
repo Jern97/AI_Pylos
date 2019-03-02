@@ -14,7 +14,7 @@ public class Move {
     private PylosLocation from;
     private PylosLocation to;
     private PylosPlayerColor color;
-    private int score = Integer.MIN_VALUE; //De minst optimistische score
+    private int score = Integer.MAX_VALUE; //De minst optimistische score
     private List<Move> children = new ArrayList<>();
 
     public Move(PylosSphere sphere, PylosLocation to, PylosPlayerColor color) {
@@ -43,12 +43,6 @@ public class Move {
         return children;
     }
 
-    public void setScore(List<Move> moves) {
-        for(Move m: moves){
-            score = Math.max(score, m.getScore());
-        }
-    }
-
     public void setScore(int score){
         this.score = score;
     }
@@ -60,7 +54,7 @@ public class Move {
     public void addChildren(List<Move> children){
         for(Move m: children) {
             this.children.add(m);
-            score = Math.max(score, m.getScore() * -1);
+            score = Math.min(score, m.getScore() * -1);
         }
     }
 

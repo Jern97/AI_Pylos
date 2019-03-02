@@ -233,10 +233,15 @@ public class StudentPlayerBestFit extends PylosPlayer {
         int nMovableSpheres = (int) Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.canMove()).count();
         int nMovableSpheresOpp = (int) Arrays.stream(board.getSpheres(color.other())).filter(s -> s.getLocation() != null && s.canMove()).count();
 
-        //TODO: voorlopige oplossing tot ik vind als je player 1 of 2 bent
-        int OppHas1RoundLess = SEARCH_DEPTH % 2 == 0 ? 0 : -1;
+        int squareFactor = 0;
+        for(PylosSquare square : board.getAllSquares()){
+            if(square.getInSquare(color.other()) == 0){
+                squareFactor += square.getInSquare(color);
+            }
+        }
+        System.out.println(squareFactor);
 
-        return 10*(nReserves - nReservesOpp-OppHas1RoundLess) + 1*(nMovableSpheres-nMovableSpheresOpp-OppHas1RoundLess);
+        return 10*(nReserves - nReservesOpp) + 1*squareFactor +1*(nMovableSpheres-nMovableSpheresOpp);
 
     }
 

@@ -12,9 +12,7 @@ import java.util.stream.Collectors;
  */
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    final static int SEARCH_DEPTH = 2;
-
-    Move parentMove;
+    final static int SEARCH_DEPTH = 3;
 
     Random r = new Random();
 
@@ -60,9 +58,10 @@ public class StudentPlayerBestFit extends PylosPlayer {
         PylosPlayerColor currentColor = sim.getColor();
 
         if (sim.getState() == PylosGameState.COMPLETED) {
+            assert false;
             //Indien het spel vervolledigd is
             Move m = new Move(null, null);
-            m.setScore(evalBoard(board, currentColor));
+            m.setScore(evalBoard(board, currentColor.other()));
             List<Move> moves = new ArrayList<>();
             moves.add(m);
             return moves;
@@ -79,8 +78,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
                 if (sim.getState() == PylosGameState.REMOVE_FIRST) {
                     //Zelfde speler blijft aan de beurt
-                    parentMove = m;
-                    selectBestMove(sim, board, game, depth);
+                    m.addChildren(selectBestMove(sim, board, game, depth));
                 } else {
                     //Het is de beurt aan de andere
                     if (depth < SEARCH_DEPTH && sim.getState() != PylosGameState.COMPLETED) {
@@ -103,8 +101,8 @@ public class StudentPlayerBestFit extends PylosPlayer {
             }
 
             //PRINTS VOOR DEBUG
-            /*
             if (depth == 0) {
+                /*
                 Move bestMove = moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
                 System.out.println("***** AI:");
                 for (Move m : moves) System.out.println(m);
@@ -112,8 +110,8 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 System.out.println("***** Opponent:");
                 for (Move m: bestMove.getChildren()) System.out.println(m);
                 System.out.println();
+                */
             }
-            */
 
             return moves;
         }
@@ -129,7 +127,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
                 sim.removeSphere(m.getSphere());
 
-                selectBestMove(sim, board, game, depth);
+                m.addChildren(selectBestMove(sim, board, game, depth));
 
                 //Keer eke were
                 sim.undoRemoveFirstSphere(reverseMove.getSphere(), reverseMove.getTo(), PylosGameState.REMOVE_FIRST, currentColor);
@@ -151,9 +149,9 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
                 if (depth < SEARCH_DEPTH) {
                     //Kinderen moeten toegevoegd worden aan de parent Move (niet de remove moves)
-                    parentMove.addChildren(selectBestMove(sim, board, game, depth + 1));
+                    m.addChildren(selectBestMove(sim, board, game, depth + 1));
                 } else {
-                    parentMove.setScore(evalBoard(board, currentColor));
+                    m.setScore(evalBoard(board, currentColor));
                 }
 
                 if (reverseMove != null) {
@@ -179,7 +177,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
         PylosSphere reserveSphere = board.getReserve(color);
         for (PylosLocation loc : usableLocations) {
             if (depth != 0 || !game.moveSphereIsDraw(reserveSphere, loc)) {
-                moves.add(new Move(reserveSphere, loc, color));
+                moves.add(new Move(reserveSphere, loc, color, depth));
             }
             //Als de locatie niet op de grond ligt kan het zijn dat we deze kunnen vullen met spheres op het veld
             if (loc.Z > 0) {
@@ -187,7 +185,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 List<PylosSphere> freeSpheresBelow = Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.getLocation().Z < loc.Z && s.canMove() && !s.getLocation().isBelow(loc)).collect(Collectors.toList());
                 for (PylosSphere s : freeSpheresBelow) {
                     if (depth != 0|| !game.moveSphereIsDraw(s, loc)) {
-                        moves.add(new Move(s, loc, color));
+                        moves.add(new Move(s, loc, color, depth));
                     }
                 }
             }
@@ -208,18 +206,18 @@ public class StudentPlayerBestFit extends PylosPlayer {
             //TODO: dat moet hier echt vele duidelijker
             if (depth == 0 && game.getState() != PylosGameState.MOVE){
                 if(!game.removeSphereIsDraw(s)){
-                    moves.add(new Move(s, null, color));
+                    moves.add(new Move(s, null, color, depth));
                 }
             }
             else{
-                moves.add(new Move(s, null, color));
+                moves.add(new Move(s, null, color, depth));
             }
         }
         //Als er gepast mag worden, een extra lege move toevoegen
         if (passAllowed) {
             //Gewoon uit interesse
             //assert game.passIsDraw();
-            moves.add(new Move(null, null, color));
+            moves.add(new Move(null, null, color, depth));
         }
         Collections.shuffle(moves);
         return moves;
@@ -229,13 +227,13 @@ public class StudentPlayerBestFit extends PylosPlayer {
     private int evalBoard(PylosBoard board, PylosPlayerColor color) {
         //Spel is voltooid
         if (board.getReservesSize(color) == 0 && board.getReservesSize(color.other()) == 0) {
-            return board.getBoardLocation(0, 0, 3).getSphere().PLAYER_COLOR == color ? Integer.MAX_VALUE : Integer.MIN_VALUE;
+            return board.getBoardLocation(0, 0, 3).getSphere().PLAYER_COLOR == color ? 99999 : -99999;
         }
-        if (board.getReservesSize(color) == 0) {
-            return Integer.MIN_VALUE;
+        else if (board.getReservesSize(color) == 0) {
+            return -99999;
         }
-        if (board.getReservesSize(color.other()) == 0) {
-            return Integer.MAX_VALUE;
+        else if (board.getReservesSize(color.other()) == 0) {
+            return 99999;
         }
 
 

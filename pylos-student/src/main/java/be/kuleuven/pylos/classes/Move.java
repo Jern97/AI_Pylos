@@ -14,18 +14,21 @@ public class Move {
     private PylosLocation from;
     private PylosLocation to;
     private PylosPlayerColor color;
-    private int score = Integer.MAX_VALUE; //De minst optimistische score
+    private int score;
+    private boolean hasScore = false;
     private List<Move> children = new ArrayList<>();
+    private int depth;
 
-    public Move(PylosSphere sphere, PylosLocation to, PylosPlayerColor color) {
+    public Move(PylosSphere sphere, PylosLocation to, PylosPlayerColor color, int depth) {
         this.sphere = sphere;
-        if(sphere != null) this.from = sphere.getLocation();
+        if (sphere != null) this.from = sphere.getLocation();
         this.to = to;
         this.color = color;
+        this.depth = depth;
     }
 
     //Constructor voor reverseMove
-    public Move(PylosSphere sphere, PylosPlayerColor color){
+    public Move(PylosSphere sphere, PylosPlayerColor color) {
         this.sphere = sphere;
         this.to = sphere.getLocation();
         this.color = color;
@@ -43,45 +46,64 @@ public class Move {
         return children;
     }
 
-    public void setScore(int score){
+    public void setScore(int score) {
         this.score = score;
+        this.hasScore = true;
     }
 
     public int getScore() {
         return score;
     }
 
-    public void addChildren(List<Move> children){
-        for(Move m: children) {
-            this.children.add(m);
-            score = Math.min(score, m.getScore() * -1);
+    public void addChildren(List<Move> children) {
+
+        if(children.get(0).getColor() != color){
+            if (!hasScore) {
+                score = children.get(0).getScore() * -1;
+                hasScore = true;
+            }
+            for (Move m : children) {
+                this.children.add(m);
+                score = Math.min(score, m.getScore() * -1);
+            }
+        } else {
+            if (!hasScore) {
+                score = children.get(0).getScore();
+                hasScore = true;
+            }
+            for (Move m : children) {
+                this.children.add(m);
+                score = Math.max(score, m.getScore());
+            }
         }
     }
 
-    public Move getOptimalChild(){
-        if(!children.isEmpty())
+    public Move getOptimalChild() {
+        if (!children.isEmpty())
             return children.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
         else return null;
     }
 
 
-
-    public String toString(){
+    public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append("("+score+")");
-        if(from != null){
-            sb.append("["+from.X + ", " + from.Y + ", " + from.Z+ "]");
-        }
-        else{
+        sb.append("(" + score + ")");
+        if (from != null) {
+            sb.append("[" + from.X + ", " + from.Y + ", " + from.Z + "]");
+        } else {
             sb.append("[reserve]");
         }
         sb.append(" TO ");
-        if(to != null){
-            sb.append("["+ to.X + ", " + to.Y + ", " + to.Z+ "]");
-        }
-        else{
+        if (to != null) {
+            sb.append("[" + to.X + ", " + to.Y + ", " + to.Z + "]");
+        } else {
             sb.append("[reserve]");
         }
+        sb.append(" ("+depth+")");
         return sb.toString();
+    }
+
+    public PylosPlayerColor getColor() {
+        return color;
     }
 }

@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
  */
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    private final static int SEARCH_DEPTH = 1;
+    private final static int SEARCH_DEPTH = 0;
 
     @Override
     public void doMove(PylosGameIF game, PylosBoard board) {

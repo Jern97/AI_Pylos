@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
  */
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    final static int SEARCH_DEPTH = 3;
+    final static int SEARCH_DEPTH = 0;
 
     Random r = new Random();
 
@@ -34,6 +34,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
     public void doRemove(PylosGameIF game, PylosBoard board) {
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
         List<Move> moves = selectBestMove(sim, board, game, 0);
+        //TODO: Soms geen moves gevonden???
         Move bestMove = moves.stream().max(Comparator.comparing(Move::getScore)).orElseThrow(NoSuchElementException::new);
 
         game.removeSphere(bestMove.getSphere());
@@ -118,7 +119,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
         if (sim.getState() == PylosGameState.REMOVE_FIRST) {
             List<Move> moves = generateRemoves(board, currentColor, game, depth, false);
 
-            if(moves.isEmpty()){
+            if (moves.isEmpty()) {
                 System.out.println("stop");
             }
 
@@ -184,7 +185,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 //Selecteer alle spheres die lager dan deze locatie liggen op het bord en kunnen bewegen
                 List<PylosSphere> freeSpheresBelow = Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.getLocation().Z < loc.Z && s.canMove() && !s.getLocation().isBelow(loc)).collect(Collectors.toList());
                 for (PylosSphere s : freeSpheresBelow) {
-                    if (depth != 0|| !game.moveSphereIsDraw(s, loc)) {
+                    if (depth != 0 || !game.moveSphereIsDraw(s, loc)) {
                         moves.add(new Move(s, loc, color, depth));
                     }
                 }
@@ -197,19 +198,20 @@ public class StudentPlayerBestFit extends PylosPlayer {
     private List<Move> generateRemoves(PylosBoard board, PylosPlayerColor color, PylosGameIF game, int depth, boolean passAllowed) {
         List<PylosSphere> removableSpheres = Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null && s.canMove()).collect(Collectors.toList());
 
-        if(!passAllowed && removableSpheres.isEmpty()){
+        if (!passAllowed && removableSpheres.isEmpty()) {
             System.out.println("stop");
         }
         List<Move> moves = new ArrayList<>();
-
+        List<Move> drawMoves = new ArrayList<>();
         for (PylosSphere s : removableSpheres) {
             //TODO: dat moet hier echt vele duidelijker
-            if (depth == 0 && game.getState() != PylosGameState.MOVE){
-                if(!game.removeSphereIsDraw(s)){
+            if (depth == 0 && game.getState() != PylosGameState.MOVE) {
+                if (!game.removeSphereIsDraw(s)) {
                     moves.add(new Move(s, null, color, depth));
+                } else {
+                    drawMoves.add(new Move(s, null, color, depth));
                 }
-            }
-            else{
+            } else {
                 moves.add(new Move(s, null, color, depth));
             }
         }
@@ -219,8 +221,13 @@ public class StudentPlayerBestFit extends PylosPlayer {
             //assert game.passIsDraw();
             moves.add(new Move(null, null, color, depth));
         }
-        Collections.shuffle(moves);
-        return moves;
+        if (!moves.isEmpty()) {
+            Collections.shuffle(moves);
+            return moves;
+        } else {
+            Collections.shuffle(drawMoves);
+            return drawMoves;
+        }
     }
 
 
@@ -228,11 +235,9 @@ public class StudentPlayerBestFit extends PylosPlayer {
         //Spel is voltooid
         if (board.getReservesSize(color) == 0 && board.getReservesSize(color.other()) == 0) {
             return board.getBoardLocation(0, 0, 3).getSphere().PLAYER_COLOR == color ? 99999 : -99999;
-        }
-        else if (board.getReservesSize(color) == 0) {
+        } else if (board.getReservesSize(color) == 0) {
             return -99999;
-        }
-        else if (board.getReservesSize(color.other()) == 0) {
+        } else if (board.getReservesSize(color.other()) == 0) {
             return 99999;
         }
 
@@ -246,41 +251,49 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
         int squareFactor = 0;
         int squareFactorOpp = 0;
-        for(PylosSquare square : board.getAllSquares()){
-            if(square.getInSquare(color.other()) == 0){
-                /*
-                +1 voor 1 sphere in square
-                +4 voor 2 spheres in square
-                +8 voor 3 spheres in square
-                +16 voor 4 spheres in square
-                 */
-                squareFactor += (square.getInSquare(color))^2;
+        for (PylosSquare square : board.getAllSquares()) {
+            if (square.getInSquare(color.other()) == 0) {
+                switch (square.getInSquare(color)) {
+                    case 0:
+                        squareFactor += 0;
+                        break;
+                    case 1:
+                        squareFactor += 1;
+                        break;
+                    case 2:
+                        squareFactor += 4;
+                        break;
+                    case 3:
+                        squareFactor += 16;
+                        break;
+                    case 4:
+                        squareFactor += 25;
+                        break;
+                }
             }
-            if(square.getInSquare(color) == 0){
-                squareFactorOpp += (square.getInSquare(color.other()))^2;
+
+            if (square.getInSquare(color) == 0) {
+                switch (square.getInSquare(color.other())) {
+                    case 0:
+                        squareFactorOpp += 0;
+                        break;
+                    case 1:
+                        squareFactorOpp += 1;
+                        break;
+                    case 2:
+                        squareFactorOpp += 4;
+                        break;
+                    case 3:
+                        squareFactorOpp += 16;
+                        break;
+                    case 4:
+                        squareFactorOpp += 25;
+                        break;
+                }
             }
         }
-
-
-        return 20*(nReserves - nReservesOpp) + 1*(squareFactor-squareFactorOpp) +1*(nMovableSpheres-nMovableSpheresOpp);
+        return 20 * (nReserves - nReservesOpp) + 1 * (squareFactor - squareFactorOpp) + 1 * (nMovableSpheres - nMovableSpheresOpp);
 
     }
-
-
-    public boolean checkIfTreeIsFullyGrown(List<Move> moves, int depth){
-        if(depth == SEARCH_DEPTH) return true;
-        for(Move m: moves){
-            if(m.getChildren().size() == 0){
-                return false;
-            }
-        }
-        for(Move m: moves){
-            if(!checkIfTreeIsFullyGrown(m.getChildren(), depth+1)){
-                return false;
-            }
-        }
-        return true;
-    }
-
 
 }

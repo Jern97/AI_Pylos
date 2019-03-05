@@ -354,7 +354,7 @@ public class PylosScene {
 		Platform.runLater(() -> {
 			switch (gameState) {
 				case MOVE:
-					controller.lblInfo.setText("Move / Add");
+					controller.lblInfo.setText("Action / Add");
 					controller.vbInfo.getChildren().remove(controller.btnPass);
 					break;
 				case REMOVE_FIRST:

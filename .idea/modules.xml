@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/AI_Pylos.iml" filepath="$PROJECT_DIR$/.idea/modules/AI_Pylos.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/pylos-core/pylos-core.iml" filepath="$PROJECT_DIR$/.idea/modules/pylos-core/pylos-core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/pylos-gui/pylos-gui.iml" filepath="$PROJECT_DIR$/.idea/modules/pylos-gui/pylos-gui.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/pylos-student/pylos-student.iml" filepath="$PROJECT_DIR$/.idea/modules/pylos-student/pylos-student.iml" />
+    </modules>
+  </component>
+</project>

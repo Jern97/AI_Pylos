@@ -46,7 +46,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
     private List<Action> selectBestMove(PylosGameSimulator sim, PylosBoard board, PylosGameIF game, int depth) {
 
         /*
-            Overloopt recursief alle mogelijkheden tot op een bepaalde diepte en bepaald met minimax scores
+            Overloopt recursief alle mogelijkheden tot op een bepaalde diepte en gebruikt minimax om de beste action uit te kiezen.
          */
 
         PylosPlayerColor currentColor = sim.getColor();

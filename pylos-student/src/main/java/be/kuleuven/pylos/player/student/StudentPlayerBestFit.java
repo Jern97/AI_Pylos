@@ -28,30 +28,24 @@ import java.util.stream.Collectors;
 
 public class StudentPlayerBestFit extends PylosPlayer {
 
+    final static int reserveSpheresWeight = 15;
+    final static int freeSpheresOnBoardWeight = 15;
+    final static int squaresScoreWeight = 1;
+
+
     Random r = new Random();
 
     @Override
     public void doMove(PylosGameIF game, PylosBoard board) {
-        // waar zetten
 
+        // waar zetten
         ArrayList<Move> possibleMoves = getPossibleMoves(game, board);
 
         // punten awarden adhv
         for (Move move : possibleMoves) {
 
-            PylosGameSimulator simulator = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
-
-            PylosGameState oldGameState = game.getState();
-
-            simulator.moveSphere(move.getPylosSphere(), move.getTo());
-
-            move.setScore(calculateScore(simulator, this, game, board));
-
-            if (move.getFrom() == null) {
-                simulator.undoAddSphere(move.getPylosSphere(), oldGameState, this.PLAYER_COLOR);
-            } else {
-                simulator.undoMoveSphere(move.getPylosSphere(), move.getFrom(), oldGameState, this.PLAYER_COLOR);
-            }
+            //simuleert de move, geeft de move punten, en undo't de move
+            move.awardPointsToMove(this,game,board);
         }
 
         // move met de beste score ga ik houden
@@ -107,61 +101,14 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
     public int calculateScore(PylosGameSimulator simulator, PylosPlayer player, PylosGameIF game, PylosBoard board) {
 
-        // aantal reserve balletjes
+        // aantal reserve balletjes - deze die aan de zijkant liggen
         int myReserveSpheres = board.getReservesSize(player);
         int yourReserveSpheres = board.getReservesSize(player.PLAYER_COLOR.other());
 
-
         // aantal vierkantjes waar er geen van de andere in ligt
-        int myScoreSquare = 0;
-        PylosSquare[] squares = board.getAllSquares();
-        for (PylosSquare square : squares) {
-
-            boolean allesVanMij = true;
-
-            int aantalVanMij = 0;
-            for (PylosLocation location : square.getLocations()) {
-
-                if (location.getSphere() == null) {
-                    // lege locatie
-                } else if (location.getSphere().PLAYER_COLOR == player.PLAYER_COLOR) {
-                    aantalVanMij++;
-                } else {
-                    allesVanMij = false;
-                }
-
-            }
-
-            if(allesVanMij){
-                myScoreSquare += aantalVanMij;
-            }
-
-        }
-
-        int yourScoreSquare = 0;
-        for (PylosSquare square : squares) {
-
-            boolean allesVanJou = true;
-
-            int aantalVanJou = 0;
-            for (PylosLocation location : square.getLocations()) {
-
-                if (location.getSphere() == null) {
-                    // lege locatie
-                } else if (location.getSphere().PLAYER_COLOR.other() == player.PLAYER_COLOR.other()) {
-                    aantalVanJou++;
-                } else {
-                    allesVanJou = false;
-                }
-
-            }
-
-            if(allesVanJou){
-                yourScoreSquare += aantalVanJou;
-            }
-        }
-
-
+        PylosSquare[] allSquares = board.getAllSquares();
+        int myScoreSquare = calculateScoreSquares(allSquares, player.PLAYER_COLOR);
+        int yourScoreSquare = calculateScoreSquares(allSquares, player.PLAYER_COLOR.other());
 
         // aantal vrije balletjes
         int myFreeSpheres =
@@ -177,13 +124,48 @@ public class StudentPlayerBestFit extends PylosPlayer {
                         .collect(Collectors.toList()).size();
 
 
-        int totaalScore = myFreeSpheres * 20
-                + myFreeSpheres * 2 // die al op het bord liggen
-                - yourFreeSpheres * 2
-                + myScoreSquare * myScoreSquare // ^2
-                - yourFreeSpheres * yourFreeSpheres;
+        int totaalScore =       (myReserveSpheres - yourReserveSpheres ) * reserveSpheresWeight
+                            +   (myFreeSpheres - yourFreeSpheres )       * freeSpheresOnBoardWeight
+                            +   (myScoreSquare - yourScoreSquare )       * squaresScoreWeight;
 
         return totaalScore;
+    }
+
+    /**
+     *
+     * @param allSquares alle squares op het bord
+     * @param player_color de speler waarvoor we moeten checken
+     * @return aantal totaalpunten van alle squares op het bord
+     */
+    private int calculateScoreSquares(PylosSquare[] allSquares, PylosPlayerColor player_color) {
+
+        int myScore = 0;
+        for (PylosSquare square : allSquares) {
+            myScore += calculateScoreOneSquare(square, player_color);
+        }
+
+        return myScore;
+    }
+
+    /**
+     *  2 punt in situatie : x .   | 5 punten als   : x x | 10 punten: x x | 17 punten: x x
+     *                       . .   |                : . . |            x . |            x x
+     */
+    private int calculateScoreOneSquare(PylosSquare square, PylosPlayerColor player_color) {
+
+        int aantalBalletjesInSquare = 0;
+
+        for (PylosLocation location : square.getLocations()) {
+            if( location.getSphere() != null){
+                if (location.getSphere().PLAYER_COLOR == player_color.other()) {
+                    return 0;
+                } else {
+                    aantalBalletjesInSquare++;
+                }
+            }
+        }
+        //kwadrateren, want 3 van mezelf en een lege bal moet veel meer waard zijn dan 1 bal
+        return aantalBalletjesInSquare * aantalBalletjesInSquare + 1;
     }
 
 
@@ -248,6 +230,31 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
         public void setScore(int score) {
             this.score = score;
+        }
+
+        public void awardPointsToMove(StudentPlayerBestFit studentPlayerBestFit, PylosGameIF game, PylosBoard board) {
+
+            //maak simulator aan
+            PylosGameSimulator simulator = new PylosGameSimulator(game.getState(), studentPlayerBestFit.PLAYER_COLOR, board);
+
+            //sla oude gamestate op, is nodig om de zet terug te undo'en
+            PylosGameState oldGameState = game.getState();
+
+            // doe de zet
+            simulator.moveSphere(this.getPylosSphere(), this.getTo());
+
+            // bereken score en geef punten
+            int scoreVanMove = calculateScore(simulator, studentPlayerBestFit, game, board);
+            this.setScore(scoreVanMove);
+
+            // undo move
+            if (this.getFrom() == null) {
+                simulator.undoAddSphere(this.getPylosSphere(), oldGameState, studentPlayerBestFit.PLAYER_COLOR);
+            } else {
+                simulator.undoMoveSphere(this.getPylosSphere(), this.getFrom(), oldGameState, studentPlayerBestFit.PLAYER_COLOR);
+            }
+
+
         }
     }
 

@@ -17,7 +17,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
     public void doMove(PylosGameIF game, PylosBoard board) {
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
         //Actions opvragen
-        List<Action> actions = selectBestMove(sim, board, game, 0);
+        List<Action> actions = selectBestAction(sim, board, game, 0);
         //Action met hoogste score selecteren
         Action bestAction = actions.stream().max(Comparator.comparing(Action::getScore)).orElseThrow(NoSuchElementException::new);
 
@@ -27,7 +27,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
     @Override
     public void doRemove(PylosGameIF game, PylosBoard board) {
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
-        List<Action> actions = selectBestMove(sim, board, game, 0);
+        List<Action> actions = selectBestAction(sim, board, game, 0);
         Action bestAction = actions.stream().max(Comparator.comparing(Action::getScore)).orElseThrow(NoSuchElementException::new);
 
         game.removeSphere(bestAction.getSphere());
@@ -36,14 +36,14 @@ public class StudentPlayerBestFit extends PylosPlayer {
     @Override
     public void doRemoveOrPass(PylosGameIF game, PylosBoard board) {
         PylosGameSimulator sim = new PylosGameSimulator(game.getState(), this.PLAYER_COLOR, board);
-        List<Action> actions = selectBestMove(sim, board, game, 0);
+        List<Action> actions = selectBestAction(sim, board, game, 0);
         Action bestAction = actions.stream().max(Comparator.comparing(Action::getScore)).orElseThrow(NoSuchElementException::new);
 
         if (bestAction.getSphere() != null) game.removeSphere(bestAction.getSphere());
         else game.pass();
     }
 
-    private List<Action> selectBestMove(PylosGameSimulator sim, PylosBoard board, PylosGameIF game, int depth) {
+    private List<Action> selectBestAction(PylosGameSimulator sim, PylosBoard board, PylosGameIF game, int depth) {
 
         /*
             Overloopt recursief alle mogelijkheden tot op een bepaalde diepte en gebruikt minimax om de beste action uit te kiezen.
@@ -58,19 +58,19 @@ public class StudentPlayerBestFit extends PylosPlayer {
             List<Action> actions = generateActions(board, currentColor, game, depth);
 
             for (Action m : actions) {
-                //Inverse move opslaan om het bord te kunnen herstellen
+                //Inverse action opslaan om het bord te kunnen herstellen
                 Action reverseAction = new Action(m.getSphere(), m.getSphere().getLocation(), currentColor);
 
                 sim.moveSphere(m.getSphere(), m.getTo());
 
                 if (sim.getState() == PylosGameState.REMOVE_FIRST) {
                     //Zelfde speler blijft aan de beurt
-                    m.addChildren(selectBestMove(sim, board, game, depth));
+                    m.addChildren(selectBestAction(sim, board, game, depth));
                 } else {
                     //Het is de beurt aan de andere
                     if (depth < SEARCH_DEPTH && sim.getState() != PylosGameState.COMPLETED) {
                         //Target depth is nog niet bereikt: dieper zoeken
-                        m.addChildren(selectBestMove(sim, board, game, depth + 1));
+                        m.addChildren(selectBestAction(sim, board, game, depth + 1));
                     } else {
                         //Target depth is bereikt, bord moet geëvalueerd worden
                         m.setScore(evalBoard(board, currentColor));
@@ -94,7 +94,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 Action reverseAction = new Action(m.getSphere(), m.getSphere().getLocation(), sim.getColor());
                 sim.removeSphere(m.getSphere());
                 //Dieper zoeken
-                m.addChildren(selectBestMove(sim, board, game, depth));
+                m.addChildren(selectBestAction(sim, board, game, depth));
 
                 //Bord herstellen
                 sim.undoRemoveFirstSphere(reverseAction.getSphere(), reverseAction.getTo(), PylosGameState.REMOVE_FIRST, currentColor);
@@ -109,7 +109,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
             for (Action m : actions) {
                 Action reverseAction = null;
-                //Passen wordt voorgesteld door een move met sphere en location = null
+                //Passen wordt voorgesteld door een action met sphere en location = null
                 if (m.getSphere() != null) {
                     reverseAction = new Action(m.getSphere(), m.getSphere().getLocation(), sim.getColor());
                     sim.removeSphere(m.getSphere());
@@ -119,7 +119,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
                 if (depth < SEARCH_DEPTH) {
                     //Target depth is nog niet bereikt, dieper zoeken
-                    m.addChildren(selectBestMove(sim, board, game, depth + 1));
+                    m.addChildren(selectBestAction(sim, board, game, depth + 1));
                 } else {
                     //Bord evalueren en score instellen
                     m.setScore(evalBoard(board, currentColor));
@@ -151,7 +151,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
         PylosSphere reserveSphere = board.getReserve(color);
         for (PylosLocation loc : usableLocations) {
-            //Als we op depth 0 zitten moet gecheckt worden als de move niet voor een draw zorgt.
+            //Als we op depth 0 zitten moet gecheckt worden als de action niet voor een draw zorgt.
             if (depth != 0 || !game.moveSphereIsDraw(reserveSphere, loc)) {
                 //Actions toevoegen waar een sphere uit de reserve wordt geplaatst op usable location
                 actions.add(new Action(reserveSphere, loc, color));
@@ -162,7 +162,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 List<PylosSphere> freeSpheresBelow = Arrays.stream(board.getSpheres(color)).filter(s -> s.getLocation() != null &&
                         s.getLocation().Z < loc.Z && s.canMove() && !s.getLocation().isBelow(loc)).collect(Collectors.toList());
                 for (PylosSphere s : freeSpheresBelow) {
-                    //Als we op depth 0 zitten moet gecheckt worden als de move niet voor een draw zorgt.
+                    //Als we op depth 0 zitten moet gecheckt worden als de action niet voor een draw zorgt.
                     if (depth != 0 || !game.moveSphereIsDraw(s, loc)) {
                         actions.add(new Action(s, loc, color));
                     }
@@ -181,7 +181,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
         List<Action> drawActions = new ArrayList<>();
 
         for (PylosSphere s : removableSpheres) {
-            //Checken voor draw move kan enkel in de bovenste laag en bij move state.
+            //Checken voor draw action kan enkel in de bovenste laag en bij move state.
             if (depth == 0 && game.getState() != PylosGameState.MOVE) {
                 if (!game.removeSphereIsDraw(s)) {
                     actions.add(new Action(s, null, color));
@@ -193,12 +193,12 @@ public class StudentPlayerBestFit extends PylosPlayer {
                 actions.add(new Action(s, null, color));
             }
         }
-        //Als er gepast mag worden, een extra lege move toevoegen
+        //Als er gepast mag worden, een extra lege action toevoegen
         if (passAllowed) {
             actions.add(new Action(null, null, color));
         }
 
-        //Als er geen enkele move is die niet voor een draw zorgt worden de draw actions gereturnd
+        //Als er geen enkele action is die niet voor een draw zorgt worden de draw actions gereturnd
         if (!actions.isEmpty()) {
             //Actions shufflen zodat bot niet altijd op dezelfde manier reageert
             Collections.shuffle(actions);

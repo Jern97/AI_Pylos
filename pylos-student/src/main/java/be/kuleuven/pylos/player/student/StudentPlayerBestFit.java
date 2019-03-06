@@ -28,10 +28,20 @@ import java.util.stream.Collectors;
 
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    final static int reserveSpheresWeight = 15;
-    final static int freeSpheresOnBoardWeight = 15;
+    /* deze Speler vs pylosBestFit, met parameters X X X  | wint .. %
+                                                   20   10  1   |   91.9
+                                                   20   10  5   |   70.90
+                                                   25   10  1   |   90.40
+                                                   25   5   1   |   92.80
+                                                   30   5   1   |   93.9
+                                                   35   5   1   |   94.9    -> best
+                                                   50   5   1   |   93.80
+                                                   50   30  10  |   68.8
+                                                   35   5   2   |   93.8
+     */
+    final static int reserveSpheresWeight = 35;
+    final static int freeSpheresOnBoardWeight = 5;
     final static int squaresScoreWeight = 1;
-
 
     Random r = new Random();
 

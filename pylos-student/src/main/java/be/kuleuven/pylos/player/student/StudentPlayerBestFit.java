@@ -9,9 +9,17 @@ import java.util.stream.Collectors;
 /**
  * Created by Ine on 25/02/2015.
  */
+
 public class StudentPlayerBestFit extends PylosPlayer {
 
-    private final static int SEARCH_DEPTH = 0;
+    private int SEARCH_DEPTH = 0;
+
+    public StudentPlayerBestFit() {
+    }
+
+    public StudentPlayerBestFit(int SEARCH_DEPTH) {
+        this.SEARCH_DEPTH = SEARCH_DEPTH;
+    }
 
     @Override
     public void doMove(PylosGameIF game, PylosBoard board) {
@@ -148,6 +156,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
          */
         List<PylosLocation> usableLocations = Arrays.stream(board.getLocations()).filter(PylosLocation::isUsable).collect(Collectors.toList());
         List<Action> actions = new ArrayList<>();
+        List<Action> drawActions = new ArrayList<>();
 
         PylosSphere reserveSphere = board.getReserve(color);
         for (PylosLocation loc : usableLocations) {
@@ -155,6 +164,10 @@ public class StudentPlayerBestFit extends PylosPlayer {
             if (depth != 0 || !game.moveSphereIsDraw(reserveSphere, loc)) {
                 //Actions toevoegen waar een sphere uit de reserve wordt geplaatst op usable location
                 actions.add(new Action(reserveSphere, loc, color));
+            }
+            else {
+                //Actions die voor een draw zorgen ook opvangen in het geval er geen andere zijn
+                drawActions.add(new Action(reserveSphere, null, color));
             }
             //Als de locatie niet op de grond ligt kan het zijn dat we deze kunnen vullen met spheres op het veld
             if (loc.Z > 0) {
@@ -166,12 +179,22 @@ public class StudentPlayerBestFit extends PylosPlayer {
                     if (depth != 0 || !game.moveSphereIsDraw(s, loc)) {
                         actions.add(new Action(s, loc, color));
                     }
+                    else {
+                        //Actions die voor een draw zorgen ook opvangen in het geval er geen andere zijn
+                        drawActions.add(new Action(s, null, color));
+                    }
                 }
             }
         }
-        //Actions shufflen zodat bot niet altijd op dezelfde manier reageert
-        Collections.shuffle(actions);
-        return actions;
+        //Als er geen enkele action is die niet voor een draw zorgt worden de draw actions gereturnd
+        if (!actions.isEmpty()) {
+            //Actions shufflen zodat bot niet altijd op dezelfde manier reageert
+            Collections.shuffle(actions);
+            return actions;
+        } else {
+            Collections.shuffle(drawActions);
+            return drawActions;
+        }
     }
 
     private List<Action> generateRemoves(PylosBoard board, PylosPlayerColor color, PylosGameIF game, int depth, boolean passAllowed) {
@@ -264,7 +287,7 @@ public class StudentPlayerBestFit extends PylosPlayer {
 
     private class Action {
         /*
-            Stelt een actie voor op het bord: moves, removes, pass
+            Stelt een actie voor op het bord: moves, removes, passes
          */
 
         private PylosSphere sphere;
